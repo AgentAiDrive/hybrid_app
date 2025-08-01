@@ -1,8 +1,10 @@
 import streamlit as st
-import openai, json, os
+import openai, json, os, time
 from pydantic import BaseModel
 
-
+# ---------------------------------------------------------------------------
+# Handle URL-based step parameter BEFORE anything else
+# ---------------------------------------------------------------------------
 params = st.experimental_get_query_params()
 if "step" in params:
     try:
@@ -12,8 +14,9 @@ if "step" in params:
             st.rerun()
     except ValueError:
         pass
+
 # ---------------------------------------------------------------------------
-#  📐  GLOBAL STYLE SHEET
+#  📐  GLOBAL STYLE SHEET (fixed CSS typos)
 # ---------------------------------------------------------------------------
 st.markdown(
     """
@@ -32,7 +35,7 @@ st.markdown(
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 10px 10px 10px;
+      padding: 10px;
     }
 
     .biglabel {
@@ -42,12 +45,11 @@ st.markdown(
       margin: 4px 0 10px;
       text-align: center;
       letter-spacing: 0.5px;
-      background: rgba(255, 255, 255, 0.15);  /* Light translucent white */
+      background: rgba(255, 255, 255, 0.15);
       padding: 6px 12px;
       border-radius: 12px;
     }
     .frame-avatar{font-size:1.4em;margin:6px 0 6px;display:flex;justify-content:center;color:#ffffff;}
-    
     .stButton>button{
       border-radius:26px!important;
       font-weight:700!important;
@@ -58,24 +60,14 @@ st.markdown(
       margin:6px 0!important;
       width:100%!important;
     }
-    .top-nav-container {
-      padding: 12px 12px 12px 12px !important;
-      border-radius: 32px !important;
-      margin: -10px -10px 24px -10px !important;
-      width: calc(100% + 20px) !important;
-    }
-    /* --- Top nav button colors: HIGH SPECIFICITY! --- */
+    .top-nav-container { padding:12px!important; border-radius:32px!important; margin:-10px -10px 24px -10px!important; width:calc(100% + 20px)!important; }
     .top-nav-container > div[data-testid="stHorizontalBlock"] > div > div[data-testid="stButton"][data-key="nav_home"] > button { background: #e63946 !important; }
     .top-nav-container > div[data-testid="stHorizontalBlock"] > div > div[data-testid="stButton"][data-key="nav_chat"] > button { background: #27e67a !important; }
     .top-nav-container > div[data-testid="stHorizontalBlock"] > div > div[data-testid="stButton"][data-key="nav_saved"] > button { background: #1d3557 !important; }
-   
-    /* --- Answer bubble --- */
     .answer-box{background:#23683c;border-radius:12px;padding:14px 18px;color:#fff;white-space:pre-wrap;margin-top:8px;}
-   
-    /* --- Home cards --- */
     .home-card{background:rgba(255,255,255,0.15);border-radius:16px;padding:12px;margin:6px;color:#fff;}
     .home-card-title{font-weight:800;margin-bottom:6px;}
-    .home-small{font-size:0.8em;opacity:0.45;background:white;border:3px solid #000000;padding:4px;;margin:6px}
+    .home-small{font-size:0.8em;opacity:0.45;background:white;border:3px solid #000000;padding:4px;margin:6px;}
     .home-button{font-size:0.8em;opacity:0.45;background:blue;border:3px solid #000000;}
     @media (max-height:750px){.stApp{min-height:640px;}}
     </style>
@@ -102,17 +94,48 @@ def render_top_nav():
             else:
                 st.warning("No saved responses yet.")
             st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-#  HELPER FUNCTIONS & CONSTANTS
+#  DASHBOARD RENDERING
 # ---------------------------------------------------------------------------
-PROFILES_FILE = "parent_helpers_profiles.json"
+def render_dashboard():
+    steps = [
+        ("red",    "👤 AGENTS", "Create a new agent profile", [
+            ("SAVED AGENTS", 9),
+            ("NEW AGENT",    1),
+        ]),
+        ("blue",   "💬 CHATS",  "Chat with your agent", [
+            ("SAVED CHATS", 8),
+            ("NEW CHAT",    7),
+        ]),
+        ("green",  "📁 SOURCES",  "Edit Sources", [("SOURCES",  10)]),
+        ("purple", "🆘 SUPPORT","Get help & resources", [("HELP",  None)]),
+    ]
+    st.markdown('<div class="dashboard">', unsafe_allow_html=True)
+    for color, title, subtitle, buttons in steps:
+        btn_html = ""
+        for text, step_num in buttons:
+            href = f"?step={step_num}" if step_num is not None else "/Support"
+            btn_html += f'<a href="{href}">{text}</a> '
+        st.markdown(f"""
+          <div class="card {color}">
+            <h2>{title}</h2>
+            <small>{subtitle}</small>
+            {btn_html.strip()}
+          </div>
+        """, unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ---------------------------------------------------------------------------
+#  HELPER FUNCTIONS & STATE INIT
+# ---------------------------------------------------------------------------
+PROFILES_FILE   = "parent_helpers_profiles.json"
 RESPONSES_FILE = "parent_helpers_responses.json"
-SOURCES_FILE = "parent_helpers_sources.json"
+SOURCES_FILE   = "parent_helpers_sources.json"
 
 def load_json(path: str):
-    if not os.path.exists(path):
-        return []
+    if not os.path.exists(path): return []
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -137,94 +160,57 @@ for key, default in {
 step = st.session_state.get("step", 0)
 
 openai.api_key = st.secrets.get("openai_key", "YOUR_OPENAI_API_KEY")
-# Agent types and default sources
+
+# Default source lists
 AGENT_TYPES = ["Parent", "Teacher", "Other"]
+PARENT_SOURCES = {"Book": ["The Whole-Brain Child","Peaceful Parent, Happy Kids"],
+                  "Expert": ["Dr. Laura Markham","Dr. Daniel Siegel"],
+                  "Style": ["Authoritative","Gentle Parenting"]}
+TEACHER_SOURCES = {"Book": ["Teach Like a Champion","Mindset"],
+                   "Expert": ["Carol Dweck","Doug Lemov"],
+                   "Style": ["Project-Based Learning","SEL"]}
+OTHER_SOURCES = {"Book": ["Custom Book (enter manually)"],
+                 "Expert": ["Custom Expert (enter manually)"],
+                 "Style": ["Custom Style (enter manually)"]}
 
-PARENT_SOURCES = {
-    "Book": ["The Whole-Brain Child", "Peaceful Parent, Happy Kids"],
-    "Expert": ["Dr. Laura Markham", "Dr. Daniel Siegel"],
-    "Style": ["Authoritative", "Gentle Parenting"]
-}
-
-TEACHER_SOURCES = {
-    "Book": ["Teach Like a Champion", "Mindset"],
-    "Expert": ["Carol Dweck", "Doug Lemov"],
-    "Style": ["Project-Based Learning", "SEL"]
-}
-
-OTHER_SOURCES = {
-    "Book": ["Custom Book (enter manually)"],
-    "Expert": ["Custom Expert (enter manually)"],
-    "Style": ["Custom Style (enter manually)"]
-}
-
-def get_source_options(agent_type):
-    return st.session_state.get("sources", {}).get(agent_type, {})
-    
 if 'sources' not in st.session_state:
     st.session_state['sources'] = {
-        "Parent": {
-            "Book": ["The Whole-Brain Child", "Peaceful Parent, Happy Kids"],
-            "Expert": ["Dr. Laura Markham", "Dr. Daniel Siegel"],
-            "Style": ["Authoritative", "Gentle Parenting"]
-        },
-        "Teacher": {
-            "Book": ["Teach Like a Champion", "Mindset"],
-            "Expert": ["Carol Dweck", "Doug Lemov"],
-            "Style": ["Project-Based Learning", "SEL"]
-        },
-        "Other": {
-            "Book": ["Custom Book (enter manually)"],
-            "Expert": ["Custom Expert (enter manually)"],
-            "Style": ["Custom Style (enter manually)"]
-        }
+        "Parent": PARENT_SOURCES,
+        "Teacher": TEACHER_SOURCES,
+        "Other":   OTHER_SOURCES,
     }
+
+def get_source_options(agent_type):
+    return st.session_state['sources'].get(agent_type, {})
 
 class PersonaProfile(BaseModel):
     profile_name: str
     parent_name: str
     child_name: str
-    child_age: int
+    child_age:  int
     agent_type: str
     source_type: str
     source_name: str
     persona_description: str
 
 SHORTCUTS = ["💬 DEFAULT","🤝 CONNECT","🌱 GROW","🔍 EXPLORE","🛠 RESOLVE","❤ SUPPORT"]
-EMOJIS = {"💬 DEFAULT":"💬","🤝 CONNECT":"🤝","🌱 GROW":"🌱","🔍 EXPLORE":"🔍","🛠 RESOLVE":"🛠","❤ SUPPORT":"❤"}
-TOOLTIPS = {
+EMOJIS    = {sc: sc[0] for sc in SHORTCUTS}
+TOOLTIPS  = {
     "💬 DEFAULT":"No formatting",
     "🤝 CONNECT":"Help explain complex ideas with examples",
     "🌱 GROW":"Strategies to improve parenting",
     "🔍 EXPLORE":"Age-appropriate Q&A",
     "🛠 RESOLVE":"Step-by-step advice",
-    "❤ SUPPORT":"Empathetic guidance"
+    "❤ SUPPORT":"Empathetic guidance",
 }
+
 # ---------------------------------------------------------------------------
-#  STEP LOGIC
+#  MAIN STEP LOGIC
 # ---------------------------------------------------------------------------
-def render_home_card(title, subtitle=None, buttons=None, expander_label=None, expander_body=None):
-    # Title
-    st.markdown(f'<div class="biglabel">{title}</div>', unsafe_allow_html=True)
-
-    # Optional subtitle
-    if subtitle:
-        st.markdown(subtitle, unsafe_allow_html=True)
-
-    # Buttons
-    if buttons:
-        for label, key, condition, action in buttons:
-            if st.button(label, key=key):
-                if condition is None or condition():
-                    action()
-
-    # Expander
-    if expander_label and expander_body:
-        with st.expander(expander_label):
-            expander_body()
-
 if step == 0:
     render_dashboard()
+elif step == 1:
+    render_top_nav()
 # 2. Define your cards, with special handling for the AGENTS card
 steps = [
     # color,   title,    subtitle,                                      buttons
