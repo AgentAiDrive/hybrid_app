@@ -66,7 +66,7 @@ st.markdown(
     .home-card{background:rgba(255,255,255,0.15);border-radius:16px;padding:12px;margin:6px;color:#fff;}
     .home-card-title{font-weight:800;margin-bottom:6px;}
     .home-small{font-size:0.8em;opacity:0.85;background:white;border:3px solid #000000;}
-    .home-button{font-size:0.8em;opacity:0.85;background:white;border:3px solid #000000;}
+    .home-button{font-size:0.8em;opacity:0.85;background:blue;border:3px solid #000000;}
     @media (max-height:750px){.stApp{min-height:640px;}}
     </style>
     """, unsafe_allow_html=True)
@@ -221,7 +221,7 @@ if step == 0:
     with row1_col1:
         render_home_card(
             "AGENTS",
-            subtitle='<p class="home-small">View, Edit, Delete Agents</p>',
+            subtitle='<p class="home-small">  View, Edit, Delete Agents  </p>',
             buttons=[
                 ("SAVED AGENTS", "home_profiles", lambda: st.session_state.profiles,
                  lambda: (st.session_state.__setitem__('step', 9), st.rerun())),
@@ -233,14 +233,14 @@ if step == 0:
                 st.markdown(f"<p class='home-small'>{p['profile_name']}</p>", unsafe_allow_html=True)
                 for p in st.session_state.profiles
             ] if st.session_state.profiles else st.markdown(
-                '<p class="home-small">No profiles yet.</p>', unsafe_allow_html=True
+                '<p class="home-small"> No profiles yet.</p>', unsafe_allow_html=True
             )
         )
     # --- Card: CHATS ---
     with row1_col2:
         render_home_card(
             "CHATS",
-            subtitle='<p class="home-small">View and Delete Chats</p>',
+            subtitle='<p class="home-small">  View and Delete Chats </p>',
             buttons=[
                 ("SAVED CHATS", "home_saved", lambda: st.session_state.saved_responses,
                  lambda: (st.session_state.__setitem__('step', 8), st.rerun())),
@@ -273,50 +273,6 @@ if step == 0:
                 ) for atype in AGENT_TYPES
             ]
         )
-
-    # --- Card: ABOUT ---
-    with row2_col2:
-        render_home_card(
-            "ABOUT",
-            expander_label="More",
-            expander_body=lambda: st.markdown(
-                '<p class="home-small">powered by context engineering messages dynamically chatgpt 4.5</p>',
-                unsafe_allow_html=True
-            )
-        )
-        st.markdown('<p class="home-small">Personalized helpers for parents.</p>', unsafe_allow_html=True)
-
-    # --- Card: DATA ---
-    with row3_col1:
-        render_home_card(
-            "DATA",
-            buttons=[
-                ("CLEAR DATA", "clear_data", None, lambda: (
-                    st.session_state.__setitem__('profiles', []),
-                    st.session_state.__setitem__('saved_responses', []),
-                    save_json(PROFILES_FILE, []),
-                    save_json(RESPONSES_FILE, []),
-                    st.success("All data cleared.")
-                ))
-            ],
-            expander_label="Counts",
-            expander_body=lambda: (
-                st.markdown(f"<p class='home-small'>Profiles: {len(st.session_state.profiles)}</p>", unsafe_allow_html=True),
-                st.markdown(f"<p class='home-small'>Chats: {len(st.session_state.saved_responses)}</p>", unsafe_allow_html=True)
-            )
-        )
-
-    # --- Card: HELP ---
-    with row3_col2:
-        render_home_card(
-            "HELP",
-            expander_label="More",
-            expander_body=lambda: st.markdown(
-                '<p class="home-small">Edit Agent Source types and names Use Sources to build agent personas. Create custom agents then chat.</p>',
-                unsafe_allow_html=True
-            )
-        )
-    st.markdown('</div>', unsafe_allow_html=True)
 
 elif step == 1:
     render_top_nav()
