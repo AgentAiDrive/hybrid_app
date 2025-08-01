@@ -221,7 +221,7 @@ if step == 0:
     with row1_col1:
         render_home_card(
             "AGENTS",
-            subtitle='<p class="home-small">  View, Edit, Delete Agents  </p>',
+            subtitle='<p class="home-small"> -> Manage Agents  </p>',
             buttons=[
                 ("SAVED AGENTS", "home_profiles", lambda: st.session_state.profiles,
                  lambda: (st.session_state.__setitem__('step', 9), st.rerun())),
