@@ -65,7 +65,7 @@ st.markdown(
     /* --- Home cards --- */
     .home-card{background:rgba(255,255,255,0.15);border-radius:16px;padding:12px;margin:6px;color:#fff;}
     .home-card-title{font-weight:800;margin-bottom:6px;}
-    .home-small{font-size:0.8em;opacity:0.85;background:white;border:3px solid #000000;}
+    .home-small{font-size:0.8em;opacity:0.85;background:white;border:3px solid #000000;padding:4px;;margin:6px}
     .home-button{font-size:0.8em;opacity:0.85;background:blue;border:3px solid #000000;}
     @media (max-height:750px){.stApp{min-height:640px;}}
     </style>
