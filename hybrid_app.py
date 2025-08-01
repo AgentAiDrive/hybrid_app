@@ -4,7 +4,7 @@ import numpy as np
 from pydantic import BaseModel
 from time import sleep
 
-# For PDF parsing
+# Optional PDF parsing
 try:
     from PyPDF2 import PdfReader
 except ImportError:
@@ -27,11 +27,11 @@ openai.api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
 # --------------------
 @st.cache_data
 def load_json(path, default):
-    try:
-        if os.path.exists(path):
+    if os.path.exists(path):
+        try:
             return json.load(open(path))
-    except json.JSONDecodeError:
-        st.error(f"Failed to decode JSON from {path}, resetting to default.")
+        except json.JSONDecodeError:
+            st.error(f"Failed to decode JSON from {path}, resetting to default.")
     return default
 
 def save_json(path, data):
@@ -189,7 +189,7 @@ if st.button("Send") and query:
         messages.append({"role":"user","content": query})
         # ChatCompletion with function-calling
         try:
-            resp = openai.chat.completion.create(
+            resp = openai.ChatCompletion.create(
                 model="gpt-4o-mini",
                 messages=messages,
                 functions=functions,
