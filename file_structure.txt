@@ -1,0 +1,7 @@
+├── hybrid_app.py        # Main Streamlit app
+├── requirements.txt     # Python dependencies
+├── sources.json         # Domain-agnostic source list
+├── profiles.json        # Saved persona profiles
+├── index.json           # RAG embedding index
+├── memory.json          # Persistent memory store
+└── chat_history.json    # Conversation history
