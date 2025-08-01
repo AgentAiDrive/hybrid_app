@@ -1,9 +1,14 @@
-# hybrid_app.py
-
 import streamlit as st
 import openai, json, os
 import numpy as np
 from pydantic import BaseModel
+from time import sleep
+
+# For PDF parsing
+try:
+    from PyPDF2 import PdfReader
+except ImportError:
+    PdfReader = None
 
 # --------------------
 # 📦 Config & State
@@ -22,11 +27,11 @@ openai.api_key = st.secrets.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY"))
 # --------------------
 @st.cache_data
 def load_json(path, default):
-    if os.path.exists(path):
-        try:
+    try:
+        if os.path.exists(path):
             return json.load(open(path))
-        except json.JSONDecodeError:
-            return default
+    except json.JSONDecodeError:
+        st.error(f"Failed to decode JSON from {path}, resetting to default.")
     return default
 
 def save_json(path, data):
@@ -39,14 +44,14 @@ def save_json(path, data):
 sources = load_json(SOURCES_FILE, {"domains": []})
 st.sidebar.header("1. Domain Sources")
 with st.sidebar.expander("Edit Domain-Agnostic Sources", expanded=True):
-    new_src = st.text_input("Add a source (book/expert/style/URL)")
-    if st.button("➕ Add Source") and new_src:
+    new_src = st.sidebar.text_input("Add a source (book/expert/style/URL)")
+    if st.sidebar.button("➕ Add Source") and new_src:
         sources["domains"].append(new_src)
         save_json(SOURCES_FILE, sources)
         st.rerun()
-    st.markdown("---")
+    st.sidebar.markdown("---")
     for i, src in enumerate(sources["domains"]):
-        cols = st.columns((0.85, 0.15))
+        cols = st.sidebar.columns((0.85, 0.15))
         cols[0].write(src)
         if cols[1].button("✖", key=f"del_src_{i}"):
             sources["domains"].pop(i)
@@ -63,15 +68,14 @@ profile.setdefault("persona", {"name": "", "tone": "Helpful", "sources": []})
 
 profile["agent_type"] = st.sidebar.selectbox(
     "Agent Type", ["Parent","Teacher","Other"],
-    index=["Parent","Teacher","Other"].index(profile["agent_type"]) 
-          if profile["agent_type"] in ["Parent","Teacher","Other"] else 2
+    index=["Parent","Teacher","Other"].index(profile["agent_type"]) if profile["agent_type"] in ["Parent","Teacher","Other"] else 2
 )
 profile["persona"]["name"] = st.sidebar.text_input(
     "Persona Name", profile["persona"]["name"]
 )
 profile["persona"]["tone"] = st.sidebar.selectbox(
     "Tone", ["Helpful","Encouraging","Neutral"],
-    index=["Helpful","Encouraging","Neutral"].index(profile["persona"]["tone"])
+    index=["Helpful","Encouraging","Neutral"].index(profile["persona"]["tone"]) if profile["persona"]["tone"] in ["Helpful","Encouraging","Neutral"] else 0
 )
 profile["persona"]["sources"] = st.sidebar.multiselect(
     "Pick Sources to Ground Persona", sources["domains"],
@@ -88,26 +92,45 @@ uploaded = st.sidebar.file_uploader(
     "Upload Reference Docs (PDF, TXT)", accept_multiple_files=True
 )
 if uploaded:
-    # Simple chunk and embed
-    for f in uploaded:
-        text = f.read().decode('utf-8')
-        # naive split by paragraphs
-        chunks = [c for c in text.split("\n\n") if c.strip()]
-        for chunk in chunks:
-            res = openai.Embedding.create(input=chunk, model="text-embedding-ada-002")
-            emb = res['data'][0]['embedding']
-            index.append({"text": chunk, "embedding": emb})
-    save_json(INDEX_FILE, index)
-    st.sidebar.success(f"Indexed {len(index)} chunks.")
+    with st.spinner("Indexing documents..."):
+        total = len(uploaded)
+        progress = st.sidebar.progress(0)
+        for idx, f in enumerate(uploaded, start=1):
+            try:
+                # PDF handling
+                if PdfReader and f.name.lower().endswith('.pdf'):
+                    reader = PdfReader(f)
+                    text = "\n\n".join(page.extract_text() or '' for page in reader.pages)
+                else:
+                    raw = f.read()
+                    try:
+                        text = raw.decode('utf-8')
+                    except UnicodeDecodeError:
+                        text = raw.decode('latin-1', errors='ignore')
+                chunks = [c for c in text.split("\n\n") if c.strip()]
+                for chunk in chunks:
+                    res = openai.Embedding.create(input=chunk, model="text-embedding-ada-002")
+                    emb = res['data'][0]['embedding']
+                    index.append({"text": chunk, "embedding": emb})
+            except Exception as e:
+                st.sidebar.error(f"Error processing {f.name}: {e}")
+            progress.progress(idx / total)
+            sleep(0.1)
+        save_json(INDEX_FILE, index)
+        st.sidebar.success(f"Indexed {len(index)} chunks.")
 
 # RAG retrieval function
 def retrieve_documents(query, top_k=3):
-    q_res = openai.Embedding.create(input=query, model="text-embedding-ada-002")
-    q_emb = q_res['data'][0]['embedding']
-    # cosine similarity
-    scores = [np.dot(q_emb, item['embedding']) for item in index]
-    top_idxs = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
-    return [index[i]['text'] for i in top_idxs]
+    with st.spinner("Retrieving relevant contexts..."):
+        try:
+            q_res = openai.Embedding.create(input=query, model="text-embedding-ada-002")
+            q_emb = q_res['data'][0]['embedding']
+            scores = [np.dot(q_emb, item['embedding']) for item in index]
+            top_idxs = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
+            return [index[i]['text'] for i in top_idxs]
+        except Exception as e:
+            st.error(f"RAG retrieval error: {e}")
+            return []
 
 # --------------------
 # 🧠 4. Memory Management
@@ -115,11 +138,7 @@ def retrieve_documents(query, top_k=3):
 st.sidebar.header("4. Memory")
 memory = load_json(MEMORY_FILE, [])
 mem_mode = st.sidebar.radio("Memory Mode", ["session","persistent"], index=0)
-if mem_mode == "session":
-    session_memory = []
-else:
-    # persistent memory across restarts
-    session_memory = memory
+session_memory = [] if mem_mode == "session" else memory
 
 # --------------------
 # 🔧 5. Function-Calling Hooks
@@ -131,8 +150,8 @@ functions = [
         "parameters": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "Query to retrieve docs for"},
-                "top_k": {"type": "integer", "description": "Number of docs"}
+                "query": {"type": "string"},
+                "top_k": {"type": "integer"}
             },
             "required": ["query"]
         }
@@ -152,51 +171,50 @@ for m in chat:
 
 query = st.text_input("Your question:")
 if st.button("Send") and query:
-    # Build messages
-    messages = []
-    sys = [
-        f"Agent Type: {profile['agent_type']}",
-        f"Persona Name: {profile['persona']['name']}",
-        f"Tone: {profile['persona']['tone']}",
-        "Sources: " + ", ".join(profile['persona']['sources'])
-    ]
-    messages.append({"role":"system","content":"\n".join(sys)})
-    # Memory layer
-    if mem_mode == "persistent":
-        for entry in memory:
-            messages.append(entry)
-    # RAG via function calling
-    messages.append({"role":"user","content": query})
-    completion = openai.ChatCompletion.create(
-        model="gpt-4o-mini",
-        messages=messages,
-        functions=functions,
-        function_call="auto"
-    )
-    msg = completion.choices[0].message
-    if msg.get("function_call"):
-        args = json.loads(msg["function_call"]["arguments"])
-        docs = retrieve_documents(args["query"], top_k=args.get("top_k",3))
-        messages.append({
-            "role":"function",
-            "name":"retrieve_documents",
-            "content": json.dumps(docs)
-        })
-        second = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=messages
-        )
-        reply = second.choices[0].message.content
-    else:
-        reply = msg.content
-    # Display & save
-    st.markdown(f"**Agent:** {reply}")
-    chat.append({"role":"user","content": query})
-    chat.append({"role":"assistant","content": reply})
-    save_json(CHAT_FILE, chat)
-    if mem_mode == "persistent":
-        memory.extend([
+    with st.spinner("Thinking..."):
+        messages = []
+        # Layer 1: system prompt
+        sys = [
+            f"Agent Type: {profile['agent_type']}",
+            f"Persona Name: {profile['persona']['name']}",
+            f"Tone: {profile['persona']['tone']}",
+            "Sources: " + ", ".join(profile['persona']['sources'])
+        ]
+        messages.append({"role":"system","content":"\n".join(sys)})
+        # Memory injection
+        if mem_mode == "persistent":
+            for entry in memory:
+                messages.append(entry)
+        # Add user turn
+        messages.append({"role":"user","content": query})
+        # ChatCompletion with function-calling
+        try:
+            resp = openai.ChatCompletion.create(
+                model="gpt-4o-mini",
+                messages=messages,
+                functions=functions,
+                function_call="auto"
+            )
+        except Exception as e:
+            st.error(f"API error: {e}")
+            return
+        msg = resp.choices[0].message
+        # Handle function call
+        if msg.get("function_call"):
+            args = json.loads(msg["function_call"]["arguments"])
+            docs = retrieve_documents(args.get("query", query), top_k=args.get("top_k",3))
+            messages.append({"role":"function","name":"retrieve_documents","content": json.dumps(docs)})
+            resp2 = openai.ChatCompletion.create(model="gpt-4o-mini",messages=messages)
+            reply = resp2.choices[0].message.content
+        else:
+            reply = msg.content
+        # Display and save history
+        st.markdown(f"**Agent:** {reply}")
+        chat.extend([
             {"role":"user","content": query},
             {"role":"assistant","content": reply}
         ])
-        save_json(MEMORY_FILE, memory)
+        save_json(CHAT_FILE, chat)
+        if mem_mode == "persistent":
+            memory.extend(chat[-2:])
+            save_json(MEMORY_FILE, memory)
