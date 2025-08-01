@@ -209,8 +209,6 @@ TOOLTIPS  = {
 # ---------------------------------------------------------------------------
 if step == 0:
     render_dashboard()
-elif step == 1:
-    render_top_nav()
 # 2. Define your cards, with special handling for the AGENTS card
 steps = [
     # color,   title,    subtitle,                                      buttons
