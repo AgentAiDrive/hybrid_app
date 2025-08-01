@@ -43,7 +43,7 @@ with st.sidebar.expander("Edit Domain-Agnostic Sources", expanded=True):
     if st.button("➕ Add Source") and new_src:
         sources["domains"].append(new_src)
         save_json(SOURCES_FILE, sources)
-        st.experimental_rerun()
+        st.rerun()
     st.markdown("---")
     for i, src in enumerate(sources["domains"]):
         cols = st.columns((0.85, 0.15))
@@ -51,7 +51,7 @@ with st.sidebar.expander("Edit Domain-Agnostic Sources", expanded=True):
         if cols[1].button("✖", key=f"del_src_{i}"):
             sources["domains"].pop(i)
             save_json(SOURCES_FILE, sources)
-            st.experimental_rerun()
+            st.rerun()
 
 # --------------------
 # 🧱 2. Profile Builder
