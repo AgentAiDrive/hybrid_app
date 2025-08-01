@@ -2,6 +2,16 @@ import streamlit as st
 import openai, json, os
 from pydantic import BaseModel
 
+
+params = st.experimental_get_query_params()
+if "step" in params:
+    try:
+        new_step = int(params["step"][0])
+        if st.session_state.get("step") != new_step:
+            st.session_state.step = new_step
+            st.rerun()
+    except ValueError:
+        pass
 # ---------------------------------------------------------------------------
 #  📐  GLOBAL STYLE SHEET
 # ---------------------------------------------------------------------------
@@ -65,8 +75,8 @@ st.markdown(
     /* --- Home cards --- */
     .home-card{background:rgba(255,255,255,0.15);border-radius:16px;padding:12px;margin:6px;color:#fff;}
     .home-card-title{font-weight:800;margin-bottom:6px;}
-    .home-small{font-size:0.8em;opacity:0.85;background:white;border:3px solid #000000;padding:4px;;margin:6px}
-    .home-button{font-size:0.8em;opacity:0.85;background:blue;border:3px solid #000000;}
+    .home-small{font-size:0.8em;opacity:0.45;background:white;border:3px solid #000000;padding:4px;;margin:6px}
+    .home-button{font-size:0.8em;opacity:0.45;background:blue;border:3px solid #000000;}
     @media (max-height:750px){.stApp{min-height:640px;}}
     </style>
     """, unsafe_allow_html=True)
@@ -125,6 +135,7 @@ for key, default in {
     st.session_state.setdefault(key, default)
 
 step = st.session_state.get("step", 0)
+
 openai.api_key = st.secrets.get("openai_key", "YOUR_OPENAI_API_KEY")
 # Agent types and default sources
 AGENT_TYPES = ["Parent", "Teacher", "Other"]
@@ -213,66 +224,47 @@ def render_home_card(title, subtitle=None, buttons=None, expander_label=None, ex
             expander_body()
 
 if step == 0:
-    row1_col1, row1_col2 = st.columns(2)
-    row2_col1, row2_col2 = st.columns(2)
-    row3_col1, row3_col2 = st.columns(2)
+    render_dashboard()
+# 2. Define your cards, with special handling for the AGENTS card
+steps = [
+    # color,   title,    subtitle,                                      buttons
+    ("red",    "👤 AGENTS", "Create a new agent profile", [
+        ("SAVED AGENTS", 9),
+        ("NEW AGENT",    1),
+    ]),
+    ("blue",   "💬 CHATS",  "Chat with your agent", [
+        ("SAVED CHATS", 8),
+        ("NEW CHAT",    7),
+    ]),
+    ("green",  "📁 SOURCES",  "Edit Sources", [("SOURCES",  10)]),
 
-    # --- Card: AGENTS ---
-    with row1_col1:
-        render_home_card(
-            "AGENTS",
-            subtitle='<p class="home-small"> -> Manage Agents  </p>',
-            buttons=[
-                ("SAVED AGENTS", "home_profiles", lambda: st.session_state.profiles,
-                 lambda: (st.session_state.__setitem__('step', 9), st.rerun())),
-                ("NEW AGENT", "home_create", None,
-                 lambda: (st.session_state.__setitem__('step', 1), st.rerun()))
-            ],
-            expander_label="Profiles",
-            expander_body=lambda: [
-                st.markdown(f"<p class='home-small'>{p['profile_name']}</p>", unsafe_allow_html=True)
-                for p in st.session_state.profiles
-            ] if st.session_state.profiles else st.markdown(
-                '<p class="home-small"> No profiles yet.</p>', unsafe_allow_html=True
-            )
-        )
-    # --- Card: CHATS ---
-    with row1_col2:
-        render_home_card(
-            "CHATS",
-            subtitle='<p class="home-small">  View and Delete Chats </p>',
-            buttons=[
-                ("SAVED CHATS", "home_saved", lambda: st.session_state.saved_responses,
-                 lambda: (st.session_state.__setitem__('step', 8), st.rerun())),
-                ("NEW CHAT", "home_chat", None, lambda: (
-                    st.session_state.__setitem__('step', 7 if st.session_state.profiles else 1),
-                    st.warning('No profiles – create one first.') if not st.session_state.profiles else None,
-                    st.rerun()
-                ))
-            ],
-            expander_label="Saved Count",
-            expander_body=lambda: st.markdown(
-                f"<p class='home-small'>{len(st.session_state.saved_responses)} saved</p>",
-                unsafe_allow_html=True
-            )
-        )
+    ("purple", "🆘 SUPPORT","Get help & resources", [("HELP",  None)]),
+]
 
-    # --- Card: SOURCES ---
-    with row2_col1:
-        render_home_card(
-            "SOURCES",
-            buttons=[
-                ("EDIT SOURCES", "edit_sources", None,
-                 lambda: (st.session_state.__setitem__('step', 10), st.rerun()))
-            ],
-            expander_label="Counts",
-            expander_body=lambda: [
-                st.markdown(
-                    f"<p class='home-small'>{atype}: {sum(len(st.session_state['sources'].get(atype, {}).get(t, [])) for t in ['Book','Expert','Style'])}</p>",
-                    unsafe_allow_html=True
-                ) for atype in AGENT_TYPES
-            ]
-        )
+st.markdown('<div class="dashboard">', unsafe_allow_html=True)
+
+for color, title, subtitle, buttons in steps:
+    # build up either href="?step=n" or your existing link for other cards
+    btn_html = ""
+    for text, step_num in buttons:
+        if step_num is not None:
+            href = f"?step={step_num}"
+        else:
+            # fallback to whatever path you had
+            href = {
+                "HELP":       "/Support",
+            }[text]
+        btn_html += f'<a href="{href}">{text}</a> '
+    st.markdown(f"""
+      <div class="card {color}">
+        <h2>{title}</h2>
+        <small>{subtitle}</small>
+        {btn_html.strip()}
+      </div>
+    """, unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
 
 elif step == 1:
     render_top_nav()
