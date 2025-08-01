@@ -263,9 +263,6 @@ for color, title, subtitle, buttons in steps:
       </div>
     """, unsafe_allow_html=True)
 
-st.markdown('</div>', unsafe_allow_html=True)
-
-
 elif step == 1:
     render_top_nav()
     st.markdown(
