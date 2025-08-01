@@ -16,78 +16,74 @@ if "step" in params:
         pass
 
 # ---------------------------------------------------------------------------
-#  📐  GLOBAL STYLE SHEET (fixed CSS typos)
+# 📐 GLOBAL STYLE SHEET (fixed CSS typos)
 # ---------------------------------------------------------------------------
 st.markdown(
     """
     <style>
-    body{background:linear-gradient(135deg,#2fe273 0%,#09742a 100%)!important;min-height:100vh;}
-    .stApp {
-      background: linear-gradient(335deg,#2fe273 0%,#09742a 100%)!important;
-      border-radius: 32px;
-      max-width: 400px;
-      min-height: 100vh;
-      height: 100vh;
-      overflow-y: auto;
-      margin: 32px auto;
-      box-shadow: 0 8px 32px rgba(60,60,60,.25), 0 1.5px 8px rgba(30,90,40,.06);
-      border: 3px solid #ffffff;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 10px;
-    }
-
-    .biglabel {
-      font-size: 1.1em;
-      font-weight: 800;
-      color: #ffffff;
-      margin: 4px 0 10px;
-      text-align: center;
-      letter-spacing: 0.5px;
-      background: rgba(255, 255, 255, 0.15);
-      padding: 6px 12px;
-      border-radius: 12px;
-    }
-    .frame-avatar{font-size:1.4em;margin:6px 0 6px;display:flex;justify-content:center;color:#ffffff;}
-    .stButton>button{
-      border-radius:26px!important;
-      font-weight:700!important;
-      font-size:.7em!important;
-      padding:.4em 0!important;
-      background:#ffffff!important;
-      color:#000000!important;
-      margin:6px 0!important;
-      width:100%!important;
-    }
-    .top-nav-container { padding:12px!important; border-radius:32px!important; margin:-10px -10px 24px -10px!important; width:calc(100% + 20px)!important; }
-    .top-nav-container > div[data-testid="stHorizontalBlock"] > div > div[data-testid="stButton"][data-key="nav_home"] > button { background: #e63946 !important; }
-    .top-nav-container > div[data-testid="stHorizontalBlock"] > div > div[data-testid="stButton"][data-key="nav_chat"] > button { background: #27e67a !important; }
-    .top-nav-container > div[data-testid="stHorizontalBlock"] > div > div[data-testid="stButton"][data-key="nav_saved"] > button { background: #1d3557 !important; }
-    .answer-box{background:#23683c;border-radius:12px;padding:14px 18px;color:#fff;white-space:pre-wrap;margin-top:8px;}
-    .home-card{background:rgba(255,255,255,0.15);border-radius:16px;padding:12px;margin:6px;color:#fff;}
-    .home-card-title{font-weight:800;margin-bottom:6px;}
-    .home-small{font-size:0.8em;opacity:0.45;background:white;border:3px solid #000000;padding:4px;margin:6px;}
-    .home-button{font-size:0.8em;opacity:0.45;background:blue;border:3px solid #000000;}
-    @media (max-height:750px){.stApp{min-height:640px;}}
+      body { background: linear-gradient(135deg,#2fe273 0%,#09742a 100%) !important; min-height: 100vh; }
+      .stApp {
+        background: linear-gradient(335deg,#2fe273 0%,#09742a 100%) !important;
+        border-radius: 32px;
+        max-width: 400px;
+        min-height: 100vh;
+        height: 100vh;
+        overflow-y: auto;
+        margin: 32px auto;
+        box-shadow: 0 8px 32px rgba(60,60,60,0.25), 0 1.5px 8px rgba(30,90,40,0.06);
+        border: 3px solid #fff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 10px;
+      }
+      .biglabel {
+        font-size: 1.1em;
+        font-weight: 800;
+        color: #fff;
+        margin: 4px 0 10px;
+        text-align: center;
+        letter-spacing: 0.5px;
+        background: rgba(255,255,255,0.15);
+        padding: 6px 12px;
+        border-radius: 12px;
+      }
+      .frame-avatar {
+        font-size: 1.4em;
+        margin: 6px 0;
+        display: flex;
+        justify-content: center;
+        color: #fff;
+      }
+      .stButton > button {
+        border-radius: 26px !important;
+        font-weight: 700 !important;
+        font-size: 0.7em !important;
+        padding: 0.4em 0 !important;
+        background: #fff !important;
+        color: #000 !important;
+        margin: 6px 0 !important;
+        width: 100% !important;
+      }
+      @media (max-height: 750px) { .stApp { min-height: 640px; } }
     </style>
     """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-#  TOP NAVIGATION
+# TOP NAVIGATION
 # ---------------------------------------------------------------------------
 def render_top_nav():
-    st.markdown('<div class="top-nav-container">', unsafe_allow_html=True)
-    col1, col2, col3 = st.columns(3)
-    with col1:
+    st.markdown('<div style="display:flex; gap:8px; width:100%;">', unsafe_allow_html=True)
+    cols = st.columns(3)
+    with cols[0]:
         if st.button("🏠 Home", key="nav_home"):
             st.session_state.step = 0
             st.rerun()
-    with col2:
+    with cols[1]:
         if st.button("💬 Chat", key="nav_chat"):
             st.session_state.step = 7 if st.session_state.profiles else 1
             st.rerun()
-    with col3:
+    with cols[2]:
         if st.button("📂 Saved", key="nav_saved"):
             if st.session_state.saved_responses:
                 st.session_state.step = 8
@@ -97,156 +93,46 @@ def render_top_nav():
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-#  DASHBOARD RENDERING
+# DASHBOARD (Step 0)
 # ---------------------------------------------------------------------------
 def render_dashboard():
-    steps = [
-        ("red",    "👤 AGENTS", "Create a new agent profile", [
-            ("SAVED AGENTS", 9),
-            ("NEW AGENT",    1),
-        ]),
-        ("blue",   "💬 CHATS",  "Chat with your agent", [
-            ("SAVED CHATS", 8),
-            ("NEW CHAT",    7),
-        ]),
-        ("green",  "📁 SOURCES",  "Edit Sources", [("SOURCES",  10)]),
-        ("purple", "🆘 SUPPORT","Get help & resources", [("HELP",  None)]),
+    cards = [
+        ("red",   "👤 AGENTS", "Create agent profile", [("SAVED AGENTS", 9), ("NEW AGENT", 1)]),
+        ("blue",  "💬 CHATS",  "Chat your agent",    [("SAVED CHATS", 8), ("NEW CHAT", 7)]),
+        ("green","📁 SOURCES","Edit sources",      [("SOURCES", 10)]),
+        ("purple","🆘 SUPPORT","Help & resources", [("HELP", None)])
     ]
-    st.markdown('<div class="dashboard">', unsafe_allow_html=True)
-    for color, title, subtitle, buttons in steps:
-        btn_html = ""
-        for text, step_num in buttons:
-            href = f"?step={step_num}" if step_num is not None else "/Support"
-            btn_html += f'<a href="{href}">{text}</a> '
+    st.markdown('<div style="display:grid; grid-template-columns:repeat(2,1fr); gap:16px; width:100%;">', unsafe_allow_html=True)
+    for color, title, desc, btns in cards:
+        links = []
+        for txt, stp in btns:
+            href = f"?step={stp}" if stp is not None else "/Support"
+            links.append(f'<a href="{href}">{txt}</a>')
+        btn_html = " ".join(links)
         st.markdown(f"""
-          <div class="card {color}">
-            <h2>{title}</h2>
-            <small>{subtitle}</small>
-            {btn_html.strip()}
+          <div style="padding:12px; border-radius:16px; background:var(--{color}); color:#fff; display:flex; flex-direction:column; align-items:center;">
+            <h2 style="margin:0;">{title}</h2>
+            <small style="opacity:0.85; margin-bottom:6px;">{desc}</small>
+            {btn_html}
           </div>
         """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------------------------
-#  HELPER FUNCTIONS & STATE INIT
+# STATE & HELPER INIT
 # ---------------------------------------------------------------------------
-PROFILES_FILE   = "parent_helpers_profiles.json"
-RESPONSES_FILE = "parent_helpers_responses.json"
-SOURCES_FILE   = "parent_helpers_sources.json"
-
-def load_json(path: str):
-    if not os.path.exists(path): return []
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        st.error(f"Error loading {path}: {e}")
-        return []
-
-def save_json(path: str, data):
-    try:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
-    except Exception as e:
-        st.error(f"Error writing {path}: {e}")
-
-for key, default in {
-    "profiles":        load_json(PROFILES_FILE),
-    "saved_responses": load_json(RESPONSES_FILE),
-    "last_answer":     "",
-}.items():
-    st.session_state.setdefault(key, default)
+st.session_state.setdefault("profiles",        [])
+st.session_state.setdefault("saved_responses", [])
+st.session_state.setdefault("last_answer",     "")
 
 step = st.session_state.get("step", 0)
-
-openai.api_key = st.secrets.get("openai_key", "YOUR_OPENAI_API_KEY")
-
-# Default source lists
-AGENT_TYPES = ["Parent", "Teacher", "Other"]
-PARENT_SOURCES = {"Book": ["The Whole-Brain Child","Peaceful Parent, Happy Kids"],
-                  "Expert": ["Dr. Laura Markham","Dr. Daniel Siegel"],
-                  "Style": ["Authoritative","Gentle Parenting"]}
-TEACHER_SOURCES = {"Book": ["Teach Like a Champion","Mindset"],
-                   "Expert": ["Carol Dweck","Doug Lemov"],
-                   "Style": ["Project-Based Learning","SEL"]}
-OTHER_SOURCES = {"Book": ["Custom Book (enter manually)"],
-                 "Expert": ["Custom Expert (enter manually)"],
-                 "Style": ["Custom Style (enter manually)"]}
-
-if 'sources' not in st.session_state:
-    st.session_state['sources'] = {
-        "Parent": PARENT_SOURCES,
-        "Teacher": TEACHER_SOURCES,
-        "Other":   OTHER_SOURCES,
-    }
-
-def get_source_options(agent_type):
-    return st.session_state['sources'].get(agent_type, {})
-
-class PersonaProfile(BaseModel):
-    profile_name: str
-    parent_name: str
-    child_name: str
-    child_age:  int
-    agent_type: str
-    source_type: str
-    source_name: str
-    persona_description: str
-
-SHORTCUTS = ["💬 DEFAULT","🤝 CONNECT","🌱 GROW","🔍 EXPLORE","🛠 RESOLVE","❤ SUPPORT"]
-EMOJIS    = {sc: sc[0] for sc in SHORTCUTS}
-TOOLTIPS  = {
-    "💬 DEFAULT":"No formatting",
-    "🤝 CONNECT":"Help explain complex ideas with examples",
-    "🌱 GROW":"Strategies to improve parenting",
-    "🔍 EXPLORE":"Age-appropriate Q&A",
-    "🛠 RESOLVE":"Step-by-step advice",
-    "❤ SUPPORT":"Empathetic guidance",
-}
+openai.api_key = st.secrets.get("openai_key", "")
 
 # ---------------------------------------------------------------------------
-#  MAIN STEP LOGIC
+# MAIN LOGIC THROUGH STEP 3
 # ---------------------------------------------------------------------------
 if step == 0:
     render_dashboard()
-# 2. Define your cards, with special handling for the AGENTS card
-steps = [
-    # color,   title,    subtitle,                                      buttons
-    ("red",    "👤 AGENTS", "Create a new agent profile", [
-        ("SAVED AGENTS", 9),
-        ("NEW AGENT",    1),
-    ]),
-    ("blue",   "💬 CHATS",  "Chat with your agent", [
-        ("SAVED CHATS", 8),
-        ("NEW CHAT",    7),
-    ]),
-    ("green",  "📁 SOURCES",  "Edit Sources", [("SOURCES",  10)]),
-
-    ("purple", "🆘 SUPPORT","Get help & resources", [("HELP",  None)]),
-]
-
-st.markdown('<div class="dashboard">', unsafe_allow_html=True)
-
-for color, title, subtitle, buttons in steps:
-    # build up either href="?step=n" or your existing link for other cards
-    btn_html = ""
-    for text, step_num in buttons:
-        if step_num is not None:
-            href = f"?step={step_num}"
-        else:
-            # fallback to whatever path you had
-            href = {
-                "HELP":       "/Support",
-            }[text]
-        btn_html += f'<a href="{href}">{text}</a> '
-    st.markdown(f"""
-      <div class="card {color}">
-        <h2>{title}</h2>
-        <small>{subtitle}</small>
-        {btn_html.strip()}
-      </div>
-    """, unsafe_allow_html=True)
-
 elif step == 1:
     render_top_nav()
     st.markdown(
