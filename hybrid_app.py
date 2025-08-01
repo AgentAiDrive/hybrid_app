@@ -5,15 +5,16 @@ from pydantic import BaseModel
 # ---------------------------------------------------------------------------
 # Handle URL-based step parameter BEFORE anything else
 # ---------------------------------------------------------------------------
-params = st.experimental_get_query_params()
+params = st.query_params
 if "step" in params:
     try:
         new_step = int(params["step"][0])
         if st.session_state.get("step") != new_step:
             st.session_state.step = new_step
             st.rerun()
-    except ValueError:
+    except (ValueError, KeyError):
         pass
+
 
 # ---------------------------------------------------------------------------
 # 📐 GLOBAL STYLE SHEET (fixed CSS typos)
