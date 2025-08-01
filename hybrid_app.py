@@ -189,7 +189,7 @@ if st.button("Send") and query:
         messages.append({"role":"user","content": query})
         # ChatCompletion with function-calling
         try:
-            resp = openai.ChatCompletion.create(
+            resp = openai.chat.completion.create(
                 model="gpt-4o-mini",
                 messages=messages,
                 functions=functions,
